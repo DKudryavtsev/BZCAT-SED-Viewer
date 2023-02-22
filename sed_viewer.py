@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import sys
 import os
+import warnings
 from scipy.optimize import minimize_scalar
 
 PATH = os.path.dirname(os.path.realpath(__file__))
@@ -99,17 +100,26 @@ def plot_sed(ax, source, nu_max, f_max, w, sed_res, sed_all, goodbad, n):
     return
 
 
+def add_n(val):
+    global n
+    n += val
+    if n<1 or n>3561:
+        n -= val
+        warnings.warn('Object No. is out of range, must be [1:3561]')
+    return
+
+
 def on_press(event):
     "Hotkeys"
     global n
     #print('press', event.key)
     sys.stdout.flush()
     if event.key == 'enter' or event.key == ' ':
-        n += 1
+        add_n(1)
         params = fit_poly(df, n, seds_res, seds_all)
         plot_sed(ax, *params, n)
     elif event.key == 'backspace':
-        n -= 1
+        add_n(-1)
         params = fit_poly(df, n, seds_res, seds_all)
         plot_sed(ax, *params, n)
     elif event.key == 'b':
@@ -137,6 +147,9 @@ if len(sys.argv) == 2:
     n = 1
 else:
     n = int(sys.argv[2])
+    if n<1 or n>3561:
+        warnings.warn('Object No. is out of range, must be [1:3561]')
+        exit(0)
 file = sys.argv[1]
 df = pd.read_csv(file)
 df['Synch_max'] = df.get('Synch_max', np.NaN)
