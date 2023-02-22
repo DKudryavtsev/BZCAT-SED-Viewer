@@ -115,19 +115,16 @@ def on_press(event):
     elif event.key == 'b':
         df.loc[n-1, 'Correct'] = False
         df.to_csv(file, index=False)
-        n += 1
         params = fit_poly(df, n, seds_res, seds_all)
         plot_sed(ax, *params, n)
     elif event.key == 'g':
         df.loc[n-1, 'Correct'] = True
         df.to_csv(file, index=False)
-        n += 1
         params = fit_poly(df, n, seds_res, seds_all)
         plot_sed(ax, *params, n)
     elif event.key == 'c':
         df.loc[n-1, 'Correct'] = np.NaN
         df.to_csv(file, index=False)
-        n += 1
         params = fit_poly(df, n, seds_res, seds_all)
         plot_sed(ax, *params, n)
         
