@@ -1,17 +1,19 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
 import sys
 import os
 import warnings
 from scipy.optimize import minimize_scalar
+
 
 PATH = os.path.dirname(os.path.realpath(__file__))
 FILE_SEDS_RES = os.path.join(PATH, 'data/seds_residents.csv')
 FILE_SEDS_ALL = os.path.join(PATH, 'data/seds_all.csv')
 
 
-def fit_poly(df, n, seds_res, seds_all):
+def fit_poly(df, n, seds_res, seds_all, high_bound=15.5):
     """Fitting a polynomial to an object's SED
        n is the row number
     """
@@ -20,7 +22,6 @@ def fit_poly(df, n, seds_res, seds_all):
         
     # Constraints
     LOW_BOUND =10
-    HIGH_BOUND = 15.5
     LOW_HIGH_BORDER = 12
     
     source = df.iloc[n-1]['BZCAT5 Source name']
@@ -39,17 +40,17 @@ def fit_poly(df, n, seds_res, seds_all):
     # should be present  
     mask_low = sed_res['log_nu'] < LOW_HIGH_BORDER
     mask_high = ((sed_res['log_nu']>LOW_HIGH_BORDER) 
-                 & (sed_res['log_nu']<HIGH_BOUND))
+                 & (sed_res['log_nu']<high_bound))
     if (len(sed_res[mask_low])<1) or (len(sed_res[mask_high])<1):
         return np.NaN
     
     # Polynomial fit
-    sed_pol = sed_res[sed_res['log_nu'] < HIGH_BOUND]
+    sed_pol = sed_res[sed_res['log_nu'] < high_bound]
     sed_pol = sed_pol.groupby('log_nu')['log_nufnu'].mean().reset_index()
     nu_max, f_max = np.NaN, np.NaN
     while ((sed_pol.shape[0] > 3) 
            and (sed_pol[(sed_pol['log_nu']>LOW_HIGH_BORDER)
-                        & (sed_pol['log_nu']<HIGH_BOUND)].shape[0] > 0)):
+                        & (sed_pol['log_nu']<high_bound)].shape[0] > 0)):
         x0 = np.ones(sed_pol.shape[0])
         x1 = np.array(sed_pol['log_nu'])
         x2 = np.array(sed_pol['log_nu']**2)
@@ -59,9 +60,9 @@ def fit_poly(df, n, seds_res, seds_all):
         w = np.linalg.inv(X.T@X) @ X.T @ y            
             
         # if the polynomial falls at right, then exit
-        if (w[1] + 2*w[2]*HIGH_BOUND + 3*w[3]*HIGH_BOUND**2) < 0: 
+        if (w[1] + 2*w[2]*high_bound + 3*w[3]*high_bound**2) < 0: 
             res = minimize_scalar(
-                f, bounds=(LOW_BOUND, HIGH_BOUND), method='bounded')
+                f, bounds=(LOW_BOUND, high_bound), method='bounded')
             nu_max = res.x  
             f_max = -f(nu_max)
             break 
@@ -70,16 +71,17 @@ def fit_poly(df, n, seds_res, seds_all):
         sed_pol = sed_pol[:-1]  
     
     df.loc[n-1, 'Synch_max'] = nu_max
+    df.loc[n-1, 'High_bound'] = high_bound
     df.to_csv(file, index=False)   
     
     return source, nu_max, f_max, w, sed_res, sed_all, goodbad
 
 
-def plot_sed(ax, source, nu_max, f_max, w, sed_res, sed_all, goodbad, n):
+def plot_sed(ax, source, nu_max, f_max, w, sed_res, sed_all, goodbad, n, high_bound=15.5):
     "Plotting a SED with a fitted polynomial"
     ax[0].clear()
     ax[1].clear()
-    x = np.linspace(7.5, 15.5, 50)
+    x = np.linspace(7.5, high_bound, 50)
     y = w[0] + w[1]*x + w[2]*x**2 +w[3]*x**3
     ax[0].errorbar(
         sed_res['log_nu'], sed_res['log_nufnu'], yerr=sed_res['log_err'], fmt='.')
@@ -116,28 +118,32 @@ def on_press(event):
     sys.stdout.flush()
     if event.key == 'enter' or event.key == ' ':
         add_n(1)
-        params = fit_poly(df, n, seds_res, seds_all)
-        plot_sed(ax, *params, n)
+        update(hb_slider.val)
     elif event.key == 'backspace':
         add_n(-1)
-        params = fit_poly(df, n, seds_res, seds_all)
-        plot_sed(ax, *params, n)
+        update(hb_slider.val)
     elif event.key == 'b':
         df.loc[n-1, 'Correct'] = False
         df.to_csv(file, index=False)
-        params = fit_poly(df, n, seds_res, seds_all)
-        plot_sed(ax, *params, n)
+        update(hb_slider.val)
     elif event.key == 'g':
         df.loc[n-1, 'Correct'] = True
         df.to_csv(file, index=False)
-        params = fit_poly(df, n, seds_res, seds_all)
-        plot_sed(ax, *params, n)
+        update(hb_slider.val)
     elif event.key == 'c':
         df.loc[n-1, 'Correct'] = np.NaN
         df.to_csv(file, index=False)
-        params = fit_poly(df, n, seds_res, seds_all)
-        plot_sed(ax, *params, n)
-        
+        update(hb_slider.val)
+
+
+def update(val):
+    if df.iloc[n-1]['Correct'] is True:
+        hb_slider.eventson = False
+        hb_slider.set_val(df.iloc[n-1]['High_bound'])
+        hb_slider.eventson = True
+    params = fit_poly(df, n, seds_res, seds_all, hb_slider.val)
+    plot_sed(ax, *params, n, hb_slider.val)
+
 
 # Data readout
 if len(sys.argv)!=2 and len(sys.argv)!=3:
@@ -154,6 +160,7 @@ file = sys.argv[1]
 df = pd.read_csv(file)
 df['Synch_max'] = df.get('Synch_max', np.NaN)
 df['Correct'] = df.get('Correct', np.NaN)
+df['High_bound'] = df.get('High_bound', np.NaN)
 seds_res = pd.read_csv(FILE_SEDS_RES)
 seds_all = pd.read_csv(FILE_SEDS_ALL)
 
@@ -192,7 +199,21 @@ plt.rc('figure', titlesize=18)
 plt.rc('axes', titlesize=16)
 plt.rc('axes', labelsize=14)
 fig, ax = plt.subplots(1, 2, figsize=(16, 5))
+
+# adjust the main plot to make room for the sliders
+fig.subplots_adjust(bottom=0.25)
+
+# Make a horizontal slider to control the frequency.
+axfreq = fig.add_axes([0.2, 0.1, 0.25, 0.03])
+hb_slider = Slider(
+    ax=axfreq,
+    label='Right frequency bound',
+    valmin=12.5,
+    valmax=20,
+    valinit=15.5
+)
+hb_slider.on_changed(update)
+
 fig.canvas.mpl_connect('key_press_event', on_press)
-params = fit_poly(df, n, seds_res, seds_all)
-plot_sed(ax, *params, n)
+update(hb_slider.val)
 plt.show()
