@@ -30,12 +30,12 @@ The script makes two charts - for the data from the SED Builder resident catalog
 Hotkeys in the graphics window:
 * Enter or Space - see the next object;
 * Backspace - return one step back;
-* 'g' - mark as a good fit, the slider for the polynomial right bound will be blocked after setting this mark, and the result wil be fixed; to change the parameters you need to clear the mark first (see below); 
-* 'b' - mark as a bad fit (this is a redundant label to a certain degree);
+* 'g' - mark as a good fit (correctness = True); 
+* 'b' - mark as a bad fit (correctness = False);
 * 'c' - clear a mark;
 * 'f' - full screen on/off;
 * 'q' - quit
 
-Objects labelled as "good" (correctness == True) will be blocked from further fitting! To continue the fitting, clear the mark first. 
+***Objects labelled as "good" or "bad" (correctness == True or False) will be blocked from further fitting! To continue the fitting, clear the mark first.*** 
 
 The marking labels are saved in the original file along with the synchrotron peak frequency, right frequency bound, and polynomial order and are available during the following script runnings. One can also change and clean the labels.
