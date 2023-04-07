@@ -11,7 +11,7 @@ PATH = os.path.dirname(os.path.realpath(__file__))
 FILE_SEDS_RES = os.path.join(PATH, 'data/seds_residents.csv')
 FILE_SEDS_ALL = os.path.join(PATH, 'data/seds_all.csv')
 LOW_BOUND = 10  # Left frequency bound (for the optimizer only)
-
+LOGNUFNU_MAX = -5  # To remove flux outliers
 
 def fit3deg(sed_pol, high_bound):
     "Fitting a 3rd degree polynomial"
@@ -188,13 +188,31 @@ def set_true_values():
 
 def update(val):
     "Response if the slider or button have been changed by the user"
-    if df.iloc[n-1]['Correct'] is True:
+    if ((df.iloc[n-1]['Correct'] is True) 
+        or (df.iloc[n-1]['Correct'] is False)):
         slider_val, polydeg = set_true_values()        
     else:
         slider_val = hb_slider.val
         polydeg = get_polydeg(button.value_selected)
     params = fit_poly(df, n, seds_res, seds_all, slider_val, polydeg)
     plot_sed(ax, *params, n, hb_slider.val, polydeg)
+
+
+def read_seds(file):
+    "Reading SEDs from a file"
+    seds = pd.read_csv(file)
+ 
+    # Recalculation of SED values to logarithmic scale
+    seds['log_nu'] = np.log10(seds['Frequency (Hz)'])
+    seds['log_nufnu'] = np.log10(seds['Nufnu (erg cm^-2 s^-1)'])
+    seds['log_err'] = (
+        np.log10(seds['Nufnu (erg cm^-2 s^-1)'] + seds['Nufnu_err'])
+        - seds['log_nufnu'])
+    
+    # Removing flux ouliers
+    seds = seds[seds['log_nufnu'] < LOGNUFNU_MAX]
+    
+    return seds
 
    
 # MAIN PROGRAM
@@ -210,25 +228,15 @@ else:
         warnings.warn('Object No. is out of range, must be [1:3561]')
         exit(0)
 file = sys.argv[1]
+
 df = pd.read_csv(file)
 df['Synch_max'] = df.get('Synch_max', np.NaN)
 df['Correct'] = df.get('Correct', np.NaN)
 df['High_bound'] = df.get('High_bound', np.NaN)
 df['Poly_degree'] = df.get('Poly_degree', np.NaN)
-seds_res = pd.read_csv(FILE_SEDS_RES)
-seds_all = pd.read_csv(FILE_SEDS_ALL)
 
-# Recalculation of SED values to logarithmic scale
-seds_res['log_nu'] = np.log10(seds_res['Frequency (Hz)'])
-seds_res['log_nufnu'] = np.log10(seds_res['Nufnu (erg cm^-2 s^-1)'])
-seds_res['log_err'] = (
-    np.log10(seds_res['Nufnu (erg cm^-2 s^-1)'] + seds_res['Nufnu_err'])
-    - seds_res['log_nufnu'])
-seds_all['log_nu'] = np.log10(seds_all['Frequency (Hz)'])
-seds_all['log_nufnu'] = np.log10(seds_all['Nufnu (erg cm^-2 s^-1)'])
-seds_all['log_err'] = (
-    np.log10(seds_all['Nufnu (erg cm^-2 s^-1)'] + seds_all['Nufnu_err'])
-    - seds_all['log_nufnu'])
+seds_res = read_seds(FILE_SEDS_RES)
+seds_all = read_seds(FILE_SEDS_ALL)
 
 # "Mutual" source names for the datasets
 df['Source'] = df.apply(lambda x:
