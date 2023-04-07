@@ -11,6 +11,7 @@ PATH = os.path.dirname(os.path.realpath(__file__))
 FILE_SEDS_RES = os.path.join(PATH, 'data/seds_residents.csv')
 FILE_SEDS_ALL = os.path.join(PATH, 'data/seds_all.csv')
 LOW_BOUND = 10  # Left frequency bound (for the optimizer only)
+LOW_HIGH_BORDER = 12  # Fluxes lower and higher this freq. must be present
 LOGNUFNU_MAX = -5  # To remove flux outliers
 
 def fit3deg(sed_pol, high_bound):
@@ -18,8 +19,11 @@ def fit3deg(sed_pol, high_bound):
     def f(x):
         return -(w[0] + w[1]*x + w[2]*x**2 + w[3]*x**3)
     
-    nu_max, f_max = np.NaN, np.NaN
-    while sed_pol.shape[0] > 3:
+    nu_max, f_max, w = np.NaN, np.NaN, [np.NaN, np.NaN, np.NaN, np.NaN]
+    #while sed_pol.shape[0] > 3:
+    while ((sed_pol.shape[0] > 3) 
+           and (sed_pol[(sed_pol['log_nu']>LOW_HIGH_BORDER)
+                        & (sed_pol['log_nu']<high_bound)].shape[0] > 0)):
         x0 = np.ones(sed_pol.shape[0])
         x1 = np.array(sed_pol['log_nu'])
         x2 = np.array(sed_pol['log_nu']**2)
@@ -47,8 +51,11 @@ def fit2deg(sed_pol, high_bound):
     def f(x):
         return -(w[0] + w[1]*x + w[2]*x**2)
     
-    nu_max, f_max = np.NaN, np.NaN
-    while sed_pol.shape[0] > 2:
+    nu_max, f_max, w = np.NaN, np.NaN, [np.NaN, np.NaN, np.NaN]
+    #while sed_pol.shape[0] > 2:
+    while ((sed_pol.shape[0] > 2) 
+           and (sed_pol[(sed_pol['log_nu']>LOW_HIGH_BORDER)
+                        & (sed_pol['log_nu']<high_bound)].shape[0] > 0)):
         x0 = np.ones(sed_pol.shape[0])
         x1 = np.array(sed_pol['log_nu'])
         x2 = np.array(sed_pol['log_nu']**2)
@@ -107,19 +114,24 @@ def plot_sed(ax, source, nu_max, f_max, w, sed_res, sed_all,
     "Plotting a SED with a fitted polynomial"
     ax[0].clear()
     ax[1].clear()
-    x = np.linspace(7.5, high_bound, 50)
-    if polydeg == 3:
-        y = w[0] + w[1]*x + w[2]*x**2 +w[3]*x**3
-    else:
-        y = w[0] + w[1]*x + w[2]*x**2
     ax[0].errorbar(
         sed_res['log_nu'], sed_res['log_nufnu'], yerr=sed_res['log_err'], fmt='.')
-    ax[0].plot(x, y)
-    ax[0].vlines(nu_max, ymin=f_max-3, ymax=f_max+1, linestyle='--', color='r')
     ax[1].errorbar(
         sed_all['log_nu'], sed_all['log_nufnu'], yerr=sed_all['log_err'], fmt='.')
-    ax[1].plot(x, y)
-    ax[1].vlines(nu_max, ymin=f_max-3, ymax=f_max+1, linestyle='--', color='r')    
+        
+    if np.isnan(w[0]):
+        warnings.warn('Insufficient data')
+    else:
+        x = np.linspace(7.5, high_bound, 50)
+        if polydeg == 3:
+            y = w[0] + w[1]*x + w[2]*x**2 +w[3]*x**3
+        else:
+            y = w[0] + w[1]*x + w[2]*x**2
+        ax[0].plot(x, y)
+        ax[0].vlines(nu_max, ymin=f_max-3, ymax=f_max+1, linestyle='--', color='r')
+        ax[1].plot(x, y)
+        ax[1].vlines(nu_max, ymin=f_max-3, ymax=f_max+1, linestyle='--', color='r')    
+    
     plt.suptitle(f'Source: {source}; object No. {n}; nu_max = {nu_max:.3f}; correctness: {goodbad}')
     ax[0].set_title('Resident catalogs')
     ax[1].set_title('All catalogs')
@@ -127,6 +139,7 @@ def plot_sed(ax, source, nu_max, f_max, w, sed_res, sed_all,
         xlabel='$\\log_{10} \\nu$, [Hz]', 
         ylabel='$\\log_{10} \\nu F_{\\nu}$, [erg cm$^{-2}$ s$^{-1}$]')
     ax[1].set(xlabel='$\\log_{10} \\nu$, [Hz]')
+    
     fig.canvas.draw()
 
 
