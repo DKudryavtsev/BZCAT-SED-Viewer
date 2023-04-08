@@ -10,9 +10,20 @@ from scipy.optimize import minimize_scalar
 PATH = os.path.dirname(os.path.realpath(__file__))
 FILE_SEDS_RES = os.path.join(PATH, 'data/seds_residents.csv')
 FILE_SEDS_ALL = os.path.join(PATH, 'data/seds_all.csv')
-LOW_BOUND = 10  # Left frequency bound (for the optimizer only)
+LOW_OPT_BOUND = 10    # Left frequency bound (for the optimizer only)
 LOW_HIGH_BORDER = 12  # Fluxes lower and higher this freq. must be present
-LOGNUFNU_MAX = -5  # To remove flux outliers
+LEFT_PLOT_BOUND = 7.5 # Left bound for polynomial plotting
+LOGNUFNU_MAX = -5     # To remove flux outliers
+
+
+def check_points(sed, degree, high_bound):
+    "Checking if the number of points is sufficcient"
+    mask1 = sed.shape[0] > degree
+    mask2 = (sed[(sed['log_nu']>LOW_HIGH_BORDER) & (sed['log_nu']<high_bound)]
+             .shape[0] > 0)
+    mask3 = sed[(sed['log_nu'] < LOW_HIGH_BORDER)].shape[0] > 0
+    return mask1 and mask2 and mask3
+
 
 def fit3deg(sed_pol, high_bound):
     "Fitting a 3rd degree polynomial"
@@ -20,10 +31,7 @@ def fit3deg(sed_pol, high_bound):
         return -(w[0] + w[1]*x + w[2]*x**2 + w[3]*x**3)
     
     nu_max, f_max, w = np.NaN, np.NaN, [np.NaN, np.NaN, np.NaN, np.NaN]
-    #while sed_pol.shape[0] > 3:
-    while ((sed_pol.shape[0] > 3) 
-           and (sed_pol[(sed_pol['log_nu']>LOW_HIGH_BORDER)
-                        & (sed_pol['log_nu']<high_bound)].shape[0] > 0)):
+    while check_points(sed_pol, 3, high_bound):
         x0 = np.ones(sed_pol.shape[0])
         x1 = np.array(sed_pol['log_nu'])
         x2 = np.array(sed_pol['log_nu']**2)
@@ -35,7 +43,7 @@ def fit3deg(sed_pol, high_bound):
         # if the polynomial falls at right, then exit
         if (w[1] + 2*w[2]*high_bound + 3*w[3]*high_bound**2) < 0: 
             res = minimize_scalar(
-                f, bounds=(LOW_BOUND, high_bound), method='bounded')
+                f, bounds=(LOW_OPT_BOUND, high_bound), method='bounded')
             nu_max = res.x  
             f_max = -f(nu_max)
             break 
@@ -52,10 +60,7 @@ def fit2deg(sed_pol, high_bound):
         return -(w[0] + w[1]*x + w[2]*x**2)
     
     nu_max, f_max, w = np.NaN, np.NaN, [np.NaN, np.NaN, np.NaN]
-    #while sed_pol.shape[0] > 2:
-    while ((sed_pol.shape[0] > 2) 
-           and (sed_pol[(sed_pol['log_nu']>LOW_HIGH_BORDER)
-                        & (sed_pol['log_nu']<high_bound)].shape[0] > 0)):
+    while check_points(sed_pol, 2, high_bound):
         x0 = np.ones(sed_pol.shape[0])
         x1 = np.array(sed_pol['log_nu'])
         x2 = np.array(sed_pol['log_nu']**2)
@@ -122,7 +127,7 @@ def plot_sed(ax, source, nu_max, f_max, w, sed_res, sed_all,
     if np.isnan(w[0]):
         warnings.warn('Insufficient data')
     else:
-        x = np.linspace(7.5, high_bound, 50)
+        x = np.linspace(LEFT_PLOT_BOUND, high_bound, 50)
         if polydeg == 3:
             y = w[0] + w[1]*x + w[2]*x**2 +w[3]*x**3
         else:
@@ -184,31 +189,30 @@ def get_polydeg(label):
 
 
 def set_true_values():
-    "Setting saved (true) values in the case an object is marked as 'good' "
-    slider_val = df.iloc[n-1]['High_bound']
+    "Setting saved values from the dadaframe"
+    hbslider_val = df.iloc[n-1]['High_bound']
     hb_slider.eventson = False
-    hb_slider.set_val(slider_val)
+    hb_slider.set_val(hbslider_val)
     hb_slider.eventson = True
-    
+      
     position_dict = {2:0, 3:1}
     polydeg = int(df.iloc[n-1]['Poly_degree'])
     button.eventson = False
     button.set_active(position_dict[polydeg])
     button.eventson = True
     
-    return slider_val, polydeg
+    return hbslider_val, polydeg
 
 
 def update(val):
     "Response if the slider or button have been changed by the user"
-    if ((df.iloc[n-1]['Correct'] is True) 
-        or (df.iloc[n-1]['Correct'] is False)):
-        slider_val, polydeg = set_true_values()        
+    if not np.isnan(df.iloc[n-1]['Correct']):
+        hbslider_val, polydeg = set_true_values()        
     else:
-        slider_val = hb_slider.val
+        hbslider_val = hb_slider.val
         polydeg = get_polydeg(button.value_selected)
-    params = fit_poly(df, n, seds_res, seds_all, slider_val, polydeg)
-    plot_sed(ax, *params, n, hb_slider.val, polydeg)
+    params = fit_poly(df, n, seds_res, seds_all, hbslider_val, polydeg)
+    plot_sed(ax, *params, n, hbslider_val, polydeg)
 
 
 def read_seds(file):
