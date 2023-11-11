@@ -109,6 +109,7 @@ def fit_poly(df, n, seds_res, seds_all, high_bound, polydeg):
     df.loc[n-1, 'Synch_max'] = nu_max
     df.loc[n-1, 'High_bound'] = high_bound
     df.loc[n-1, 'Poly_degree'] = polydeg
+    df.loc[n-1, 'Max_flux_density'] = f_max
     df.to_csv(file, index=False)   
     
     return source, nu_max, f_max, w, sed_res, sed_all, goodbad
@@ -251,6 +252,7 @@ df['Synch_max'] = df.get('Synch_max', np.NaN)
 df['Correct'] = df.get('Correct', np.NaN)
 df['High_bound'] = df.get('High_bound', np.NaN)
 df['Poly_degree'] = df.get('Poly_degree', np.NaN)
+df['Max_flux_density'] = df.get('Max_flux_density', np.NaN)
 
 seds_res = read_seds(FILE_SEDS_RES)
 seds_all = read_seds(FILE_SEDS_ALL)
