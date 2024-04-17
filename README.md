@@ -6,6 +6,17 @@
 
 The BZCAT SED Viewer script displays the spectral energy distributions (SEDs) for the blazars from the [Roma-BZCAT catalog](https://heasarc.gsfc.nasa.gov/W3Browse/all/romabzcat.html) (5th edition, Massaro et al., 2015, Ap&SS, 357, 75). It also calculates the frequency of the synchrotron component maximum using a third-degree or 2-degree polinomial and allows a user to interactively mark it as 'good' or 'bad'. The results are saved in the original file. One can use the total list of Roma-BZCAT objects (data/BZCAT.csv provided here) or make their own subsample (the file must contain the 'BZCAT5 Source name', 'RA (J2000.0)', and 'Dec (J2000.0)' columns). 
 
+### Citation:
+```
+@article{10.1088/1674-4527/ad3d14,
+	author={Kudryavtsev, D. and Sotnikova, Yu. and Stolyarov, V. and Mufakharov, T. and Vlasyuk, V. and Khabibullina, M. and Mikhailov, A. and Cherepkova, Yu.},
+	title={Cluster analysis of the Roma-BZCAT blazars},
+	journal={Research in Astronomy and Astrophysics},
+	url={http://iopscience.iop.org/article/10.1088/1674-4527/ad3d14},
+	year={2024},
+}
+```
+
 ## Data
 
 * [List of blazars](./data/BZCAT.csv) from the [Roma-BZCAT catalog](https://heasarc.gsfc.nasa.gov/W3Browse/all/romabzcat.html)
